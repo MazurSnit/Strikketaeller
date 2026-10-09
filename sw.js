@@ -1,5 +1,5 @@
 // Gør appen brugbar uden internet. Hæv versionen, når der lægges en ny udgave op.
-const CACHE = "strikkemonster-v6";
+const CACHE = "strikkemonster-v7";
 const FILES = ["./", "index.html", "style.css", "app.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-maskable.png", "apple-touch-icon.png", "favicon.png", "monster.jpg", "monster-head.png", "vendor/pdf.min.js", "vendor/pdf.worker.min.js"];
 
 self.addEventListener("install", e => {
