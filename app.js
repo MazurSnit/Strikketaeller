@@ -20,6 +20,12 @@ function toast(t) { const el = $("#toast"); el.textContent = t; el.hidden = fals
 function buzz(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} }
 
 const STATUS = { aktiv: "I gang", pause: "Pause", plan: "Planlagt", faerdig: "Færdig" };
+const STATUS_HINT = {
+  aktiv: "– du strikker på det nu. Det står øverst på forsiden og tæller med under \"Projekter i gang\".",
+  pause: "– lagt til side for en stund. Tidtagningen er stoppet. Tryk + ved Pind, så er det i gang igen.",
+  plan: "– et projekt du vil strikke senere. Gem opskrift og garn nu, og start når du er klar.",
+  faerdig: "– færdigt! Slutdatoen er sat, og projektet tæller med i statistik og mærker."
+};
 const WEIGHTS = ["Lace", "Fingering", "Sport", "DK", "Worsted / Aran", "Bulky", "Super bulky"];
 const NEEDLE_TYPES = ["Rundpind", "Strømpepinde", "Lige pinde", "Udskiftelig spids", "Hæklenål"];
 const INK = [{ c: "#f5d020", n: "Gul" }, { c: "#f08bb8", n: "Pink" }, { c: "#7fd18b", n: "Grøn" }];
@@ -159,16 +165,21 @@ function mainPlus(p) {
   incC(m);
   let lap = null;
   p.counters.slice(1).forEach(c => { if (c.follow && incC(c) === "lap") lap = c; });
-  if (p.status === "plan" || p.status === "pause") { p.status = "aktiv"; p.started = p.started || today(); }
+  let msg = null;
+  if (p.status === "plan" || p.status === "pause") { p.status = "aktiv"; p.started = p.started || today(); msg = "Projektet er sat til I gang igen"; }
+  const pm = typeof planStep === "function" ? planStep(p, 1) : null;
   logRows(1);
   save("projects", p);
-  if (lap) { buzz([40, 60, 40]); toast(`${lap.name} færdig – starter forfra`); } else buzz(15);
+  if (pm) { buzz(pm.buzz); toast(pm.msg); }
+  else if (lap) { buzz([40, 60, 40]); toast(`${lap.name} færdig – starter forfra`); }
+  else { buzz(15); if (msg) toast(msg); }
 }
 function mainMinus(p) {
   const m = p.counters[0];
   if (m.value <= 0) return;
   decC(m);
   p.counters.slice(1).forEach(c => { if (c.follow) decC(c); });
+  if (typeof planStep === "function") planStep(p, -1);
   logRows(-1);
   save("projects", p);
 }
@@ -219,10 +230,10 @@ function render() {
   route = parseHash();
   clearInterval(ticker);
   closeViewer();
-  const tabFor = { projekt: "projekter", moenster: "moenstre" }[route.tab] || route.tab;
+  const tabFor = { projekt: "projekter", plan: "projekter", moenster: "moenstre" }[route.tab] || route.tab;
   $$(".nav a").forEach(a => a.classList.toggle("on", a.dataset.tab === tabFor));
   const v = $("#view");
-  const views = { projekter: viewProjects, projekt: viewProject, moenstre: viewPatterns, moenster: viewPatterns, lager: viewStash, vaerktoejer: viewTools, statistik: viewStats };
+  const views = { projekter: viewProjects, projekt: viewProject, plan: viewPlan, moenstre: viewPatterns, moenster: viewPatterns, lager: viewStash, vaerktoejer: viewTools, statistik: viewStats };
   (views[route.tab] || viewProjects)(v);
   hydrateImages(v);
   if (route.tab === "moenster" && route.id) openViewer(route.id, route.params.get("p"));
@@ -328,15 +339,18 @@ function viewProject(v) {
       <button class="round photo" data-act="pPhoto" aria-label="Skift billede">${ICON.camera}</button></div>
     <div class="namebox"><h2>${esc(p.name)}</h2><button class="iconbtn" data-act="pRename" aria-label="Omdøb">${ICON.pen}</button></div>
     <div class="chips">${Object.entries(STATUS).map(([k, t]) => `<button class="chip${p.status === k ? " on" : ""}" data-act="pStatus" data-k="${k}">${t}</button>`).join("")}</div>
+    <div class="sthint"><span class="st ${p.status}">${STATUS[p.status]}</span> ${STATUS_HINT[p.status]}</div>
 
     <div class="timer${running ? " run" : ""}">
       <div><div class="small muted">Strikketid</div><div class="t" id="ptime">${fmtTime(elapsed(), true)}</div></div>
       <button class="btn${running ? "" : " go"}" data-act="pTimer">${running ? "Stop" : "Start"}</button>
     </div>
 
+    ${p.plan && p.plan.steps.length ? planCardHTML(p) : ""}
     ${p.counters.map(counterHTML).join("")}
     <button class="btn wide" data-act="cAdd">+ Tilføj tæller</button>
 
+    ${p.plan && p.plan.steps.length ? "" : planCardHTML(p)}
     <section class="card" style="--accent:var(--primary)">
       <div class="head"><h2>Opskrift</h2>${pat ? `<button class="chip ghost" data-act="pPattern">Skift</button>` : ""}</div>
       ${pat ? `<a class="item" href="#/moenster/${pat.id}?p=${p.id}"><div class="sw">${pat.thumb ? `<img data-blob="${pat.thumb}" alt="">` : ICON.doc}</div>
@@ -401,6 +415,9 @@ ACT.pStatus = a => {
   const p = P(); p.status = a.dataset.k;
   if (p.status === "aktiv" && !p.started) p.started = today();
   if (p.status === "faerdig") { if (!p.finished) p.finished = today(); stopTimer(p); toast("Tillykke – projektet er færdigt!"); buzz([30, 50, 30, 50, 60]); }
+  else if (p.status === "pause") { stopTimer(p); toast("Sat på pause"); }
+  else if (p.status === "plan") { stopTimer(p); toast("Flyttet til Planlagt"); }
+  else toast("I gang");
   touch(p); rerenderKeepScroll();
 };
 function stopTimer(p) { if (p.timerStart) { p.timeMs += Date.now() - p.timerStart; p.timerStart = null; } }
@@ -731,7 +748,7 @@ function renderVBottom() {
   }
   const m = p.counters[0], rep = p.counters.find((c, i) => i > 0 && c.follow && c.every);
   b.innerHTML = `<button class="minus" id="v-minus" aria-label="Én pind mindre">−</button>
-    <div class="lbl"><span>${esc(p.name)} · ${esc(m.name)}</span><b>${m.value}</b>${rep ? `<span>${esc(rep.name)}: ${rep.value} / ${rep.every}</span>` : ""}</div>
+    <div class="lbl"><span>${esc(p.name)} · ${esc(m.name)}</span><b>${m.value}</b>${p.plan && p.plan.steps.length && !planNow(p).done ? `<span class="vstep${planNow(p).shaping ? " shaping" : ""}">${esc(planNow(p).big)}</span>` : rep ? `<span>${esc(rep.name)}: ${rep.value} / ${rep.every}</span>` : ""}</div>
     <button class="plus" id="v-plus" aria-label="Én pind mere">+</button>`;
   $("#v-plus", b).onclick = () => { mainPlus(p); touch(p); renderVBottom(); };
   $("#v-minus", b).onclick = () => { mainMinus(p); touch(p); renderVBottom(); };
