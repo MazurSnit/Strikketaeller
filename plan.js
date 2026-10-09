@@ -204,9 +204,11 @@ function planStep(p, d) {
 /* ---------- Kort på projektsiden ---------- */
 function planCardHTML(p) {
   const plan = p.plan;
+  if (p.hidePlan) return "";
+  const x = `<button class="iconbtn" data-act="planHide" aria-label="Skjul strikkeplan">✕</button>`;
   if (!plan || !plan.steps.length) {
     return `<section class="card plancard empty" style="--accent:var(--amber)">
-      <div class="head"><h2>Strikkeplan</h2></div>
+      <div class="head"><h2>Strikkeplan</h2>${x}</div>
       <div class="muted">Skriv opskriften ind trin for trin. Så viser appen præcis, hvad du skal gøre på hver pind, hvornår du skal tage ind eller ud, og hvor langt du er.</div>
       <a class="btn go wide" href="#/plan/${p.id}">Lav strikkeplan</a>
     </section>`;
@@ -215,13 +217,13 @@ function planCardHTML(p) {
   const bar = `<div class="pbar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></div>`;
   if (now.done) {
     return `<section class="card plancard" style="--accent:var(--amber)">
-      <div class="head"><h2>Strikkeplan</h2><a class="chip ghost" href="#/plan/${p.id}">Rediger</a></div>${bar}
+      <div class="head"><h2>Strikkeplan</h2><div class="row"><a class="chip ghost" href="#/plan/${p.id}">Rediger</a>${x}</div></div>${bar}
       <div class="now"><div class="big">Hele planen er strikket!</div><div class="sub">Godt gået. Husk at hæfte ender.</div></div>
       <div class="grid2">${p.status !== "faerdig" ? `<button class="btn go" data-act="pStatus" data-k="faerdig">Marker projektet færdigt</button>` : "<span></span>"}<button class="btn" data-act="planPrev">‹ Tilbage</button></div>
     </section>`;
   }
   return `<section class="card plancard" style="--accent:var(--amber)">
-    <div class="head"><h2>Strikkeplan</h2><a class="chip ghost" href="#/plan/${p.id}">Rediger</a></div>
+    <div class="head"><h2>Strikkeplan</h2><div class="row"><a class="chip ghost" href="#/plan/${p.id}">Rediger</a>${x}</div></div>
     <div class="pmeta"><span>Trin ${plan.i + 1} af ${plan.steps.length}${now.section ? " · " + esc(now.section) : ""}</span><span>${pct}%</span></div>
     ${bar}
     <div class="now${now.shaping ? " shaping" : ""}">
@@ -238,6 +240,8 @@ function planCardHTML(p) {
     <div class="small muted">Tryk + ved Pind for hver ${W(plan).one}, du strikker – så følger planen med.</div>
   </section>`;
 }
+ACT.planHide = () => { const p = P(); p.hidePlan = true; touch(p); rerenderKeepScroll(); toast("Strikkeplanen er skjult – du finder den under Opskrift"); };
+ACT.planShow = () => { const p = P(); p.hidePlan = false; touch(p); rerenderKeepScroll(); };
 ACT.planNext = () => {
   const p = P(), plan = p.plan, s = plan.steps[plan.i];
   if (!s) return;
@@ -378,6 +382,7 @@ function openStepSheet(p, k, preset) {
         read();
         if (s.type === "gentag" && !s.lines.length) s.lines = [s.text || "Mønster"];
         if (isNew) plan.steps.push(s); else plan.steps[k] = s;
+        p.hidePlan = false;
         touch(p); close(); rerenderKeepScroll();
       };
       $("#ss-ok", el).onclick = commit;

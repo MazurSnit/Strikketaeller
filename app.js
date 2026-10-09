@@ -334,6 +334,7 @@ function viewProject(v) {
       ${pat ? `<a class="item" href="#/moenster/${pat.id}?p=${p.id}"><div class="sw">${pat.thumb ? `<img data-blob="${pat.thumb}" alt="">` : ICON.doc}</div>
         <div class="tx"><b>${esc(pat.name)}</b><span>Tryk for at åbne med tusch og tæller</span></div><span aria-hidden="true">›</span></a>`
       : `<button class="btn wide" data-act="pPattern">Vælg eller upload opskrift</button>`}
+      <div class="row"><a class="chip ghost" href="#/plan/${p.id}">${p.plan && p.plan.steps.length ? "Rediger strikkeplan" : "Lav strikkeplan"}</a>${p.hidePlan ? `<button class="chip ghost" data-act="planShow">Vis strikkeplan</button>` : ""}</div>
     </section>
 
     <section class="card" style="--accent:var(--honey)">
@@ -1057,11 +1058,12 @@ document.addEventListener("click", () => { if (!lock) keepAwake(); }, { once: tr
     if (meta) S.meta = { rowsByDay: {}, ...meta };
     await migrateOld();
     S.projects.forEach(p => { p.yarns = p.yarns || []; p.counters = p.counters?.length ? p.counters : [newCounter("Pind")]; });
-    if (!S.meta.noDefaultRep) {
-      S.meta.noDefaultRep = true;
+    if (!S.meta.noDefaultRep2) {
+      // Mønstergentagelse er ikke længere en standardtæller – fjern den automatiske fra ældre projekter
+      S.meta.noDefaultRep = S.meta.noDefaultRep2 = true;
       for (const p of S.projects) {
         const n = p.counters.length;
-        p.counters = p.counters.filter((c, i) => !(i > 0 && c.name === "Mønstergentagelse" && c.follow && c.every === 8));
+        p.counters = p.counters.filter((c, i) => !(i > 0 && c.follow && /^mønstergentagelse$/i.test(c.name.trim())));
         if (p.counters.length !== n) await save("projects", p);
       }
       await saveMeta();
