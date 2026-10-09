@@ -1,5 +1,5 @@
 "use strict";
-/* Strikketæller – projekter, tællere, mønstre, lager, værktøjer og statistik.
+/* Strikkemonster – projekter, tællere, mønstre, lager, værktøjer og statistik.
    Alt gemmes lokalt i telefonens IndexedDB. */
 
 /* ---------- Små hjælpere ---------- */
@@ -25,7 +25,7 @@ const NEEDLE_TYPES = ["Rundpind", "Strømpepinde", "Lige pinde", "Udskiftelig sp
 const INK = [{ c: "#f5d020", n: "Gul" }, { c: "#f08bb8", n: "Pink" }, { c: "#7fd18b", n: "Grøn" }];
 
 const ICON = {
-  yarn: '<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="18" cy="20" r="14" fill="var(--heather)"/><path d="M7 14c6 2 16 2 23 0M5 21c8 3 18 3 26 0M8 28c6 2 14 2 20 0M13 8c-3 7-3 17 1 25M22 7c4 8 4 18-1 26" fill="none" stroke="var(--card)" stroke-width="1.6" stroke-linecap="round" opacity=".55"/><path d="M30 28c4 2 6 5 5 9" fill="none" stroke="var(--heather)" stroke-width="2" stroke-linecap="round"/></svg>',
+  yarn: '<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="18" cy="20" r="14" fill="var(--plum)"/><path d="M7 14c6 2 16 2 23 0M5 21c8 3 18 3 26 0M8 28c6 2 14 2 20 0M13 8c-3 7-3 17 1 25M22 7c4 8 4 18-1 26" fill="none" stroke="var(--card)" stroke-width="1.6" stroke-linecap="round" opacity=".55"/><path d="M30 28c4 2 6 5 5 9" fill="none" stroke="var(--plum)" stroke-width="2" stroke-linecap="round"/></svg>',
   skein: '<svg viewBox="0 0 40 40" aria-hidden="true"><ellipse cx="20" cy="20" rx="15" ry="9" fill="var(--honey)"/><path d="M8 17c8 4 16 4 24 0M8 23c8 4 16 4 24 0M14 12c-2 5-2 11 0 16M26 12c2 5 2 11 0 16" fill="none" stroke="var(--card)" stroke-width="1.5" opacity=".6"/></svg>',
   needle: '<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M8 34L30 8M14 34L34 12" stroke="var(--moss)" stroke-width="3" stroke-linecap="round"/><circle cx="31" cy="7" r="3" fill="var(--moss)"/><circle cx="35" cy="11" r="3" fill="var(--moss)"/></svg>',
   dots: '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>',
@@ -227,7 +227,7 @@ function render() {
   hydrateImages(v);
   if (route.tab === "moenster" && route.id) openViewer(route.id, route.params.get("p"));
 }
-function setTitle(t) { $("#title").textContent = t; document.title = t === "Strikketæller" ? t : t + " · Strikketæller"; }
+function setTitle(t) { $("#title").textContent = t; document.title = t === "Strikkemonster" ? t : t + " · Strikkemonster"; }
 
 /* ---------- Fælles klik-håndtering ---------- */
 const ACT = {};
@@ -241,13 +241,14 @@ document.addEventListener("click", e => {
 /* ================= PROJEKTER ================= */
 let projFilter = "alle";
 function viewProjects(v) {
-  setTitle("Strikketæller");
+  setTitle("Strikkemonster");
   const order = { aktiv: 0, pause: 1, plan: 2, faerdig: 3 };
   const list = S.projects
     .filter(p => projFilter === "alle" || p.status === projFilter)
     .sort((a, b) => order[a.status] - order[b.status] || (b.updated || b.created) - (a.updated || a.created));
   const chip = (k, t) => `<button class="chip${projFilter === k ? " on" : ""}" data-act="pfilter" data-k="${k}">${t}</button>`;
   v.innerHTML = `
+    ${S.projects.length ? `<div class="hello"><img src="monster.jpg" alt=""><div><b>Hej! Monster har strikketøjet klar</b><span>${S.projects.filter(p => p.status === "aktiv").length} projekt${S.projects.filter(p => p.status === "aktiv").length === 1 ? "" : "er"} i gang</span></div></div>` : ""}
     <div class="sec-title"><h2>Mine projekter</h2><button class="chip on" data-act="newProject">+ Nyt</button></div>
     <div class="chips">${chip("alle", "Alle")}${chip("aktiv", "I gang")}${chip("pause", "Pause")}${chip("plan", "Planlagt")}${chip("faerdig", "Færdige")}</div>
     ${list.length ? `<div class="plist">${list.map(p => `
@@ -257,7 +258,7 @@ function viewProjects(v) {
           <span class="st ${p.status}">${STATUS[p.status]}${p.status !== "plan" ? ` · pind ${p.counters[0].value}` : ""}</span>
         </div>
       </a>`).join("")}</div>`
-      : `<div class="card empty-state">${ICON.yarn}<b>${S.projects.length ? "Ingen projekter her" : "Klar til første projekt"}</b><span>Opret et projekt for at tælle pinde, gemme opskriften og holde styr på garnet.</span><button class="btn go" data-act="newProject">+ Nyt projekt</button></div>`}`;
+      : `<div class="card empty-state"><img class="monster" src="monster.jpg" alt="Monster med strikketøj i munden"><b>${S.projects.length ? "Ingen projekter her" : "Monster er klar til første projekt"}</b><span>Opret et projekt for at tælle pinde, gemme opskriften og holde styr på garnet.</span><button class="btn go" data-act="newProject">+ Nyt projekt</button></div>`}`;
 }
 ACT.pfilter = a => { projFilter = a.dataset.k; render(); };
 ACT.newProject = () => {
@@ -336,7 +337,7 @@ function viewProject(v) {
     ${p.counters.map(counterHTML).join("")}
     <button class="btn wide" data-act="cAdd">+ Tilføj tæller</button>
 
-    <section class="card" style="--accent:var(--heather)">
+    <section class="card" style="--accent:var(--primary)">
       <div class="head"><h2>Opskrift</h2>${pat ? `<button class="chip ghost" data-act="pPattern">Skift</button>` : ""}</div>
       ${pat ? `<a class="item" href="#/moenster/${pat.id}?p=${p.id}"><div class="sw">${pat.thumb ? `<img data-blob="${pat.thumb}" alt="">` : ICON.doc}</div>
         <div class="tx"><b>${esc(pat.name)}</b><span>Tryk for at åbne med tusch og tæller</span></div><span aria-hidden="true">›</span></a>`
@@ -864,7 +865,7 @@ function viewTools(v) {
   setTitle("Værktøjer");
   const px = S.meta.pxPerCm || 60;
   v.innerHTML = `
-    <section class="card" style="--accent:var(--heather)">
+    <section class="card" style="--accent:var(--primary)">
       <div class="head"><h2>Tag jævnt ud / ind</h2></div>
       <div class="chips"><button class="chip${calMode === "ud" ? " on" : ""}" data-act="calMode" data-k="ud">Tag ud</button><button class="chip${calMode === "ind" ? " on" : ""}" data-act="calMode" data-k="ind">Tag ind</button></div>
       <div class="grid2"><label class="f">Masker nu<input type="number" id="ev-s" inputmode="numeric" value="96"></label><label class="f">${calMode === "ud" ? "Tag ud" : "Tag ind"} (antal)<input type="number" id="ev-n" inputmode="numeric" value="12"></label></div>
@@ -992,10 +993,10 @@ ACT.backup = async () => {
   const data = { app: "strikketaeller", version: 2, saved: new Date().toISOString(), projects: S.projects, patterns: S.patterns, yarns: S.yarns, needles: S.needles, meta: S.meta, blobs: [] };
   for (const b of blobs) data.blobs.push({ id: b.id, data: await blobToDataURL(b.blob) });
   const file = new Blob([JSON.stringify(data)], { type: "application/json" });
-  const name = `strikketaeller-kopi-${today()}.json`;
+  const name = `strikkemonster-kopi-${today()}.json`;
   try {
     const f = new File([file], name, { type: "application/json" });
-    if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], title: "Strikketæller – sikkerhedskopi" }); return; }
+    if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], title: "Strikkemonster – sikkerhedskopi" }); return; }
   } catch (e) { if (e.name === "AbortError") return; }
   const a = document.createElement("a"); a.href = URL.createObjectURL(file); a.download = name; document.body.appendChild(a); a.click(); a.remove();
   toast("Kopien er gemt i Overførsler");
@@ -1004,7 +1005,7 @@ ACT.restore = async () => {
   const [f] = await pickFile("application/json,.json");
   if (!f) return;
   let data;
-  try { data = JSON.parse(await f.text()); if (data.app !== "strikketaeller") throw 0; } catch (e) { toast("Det er ikke en kopi fra Strikketæller"); return; }
+  try { data = JSON.parse(await f.text()); if (data.app !== "strikketaeller") throw 0; } catch (e) { toast("Det er ikke en kopi fra Strikkemonster"); return; }
   confirmSheet("Erstat alt i appen med kopien?", "Ja, erstat", async () => {
     for (const s of STORES) await DB.clear(s);
     for (const b of data.blobs || []) { const blob = await (await fetch(b.data)).blob(); await DB.put("blobs", { id: b.id, blob }); }

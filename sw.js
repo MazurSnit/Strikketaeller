@@ -1,6 +1,6 @@
 // Gør appen brugbar uden internet. Hæv versionen, når der lægges en ny udgave op.
-const CACHE = "strikketaeller-v2";
-const FILES = ["./", "index.html", "style.css", "app.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-maskable.png", "apple-touch-icon.png", "vendor/pdf.min.js", "vendor/pdf.worker.min.js"];
+const CACHE = "strikkemonster-v3";
+const FILES = ["./", "index.html", "style.css", "app.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-maskable.png", "apple-touch-icon.png", "favicon.png", "monster.jpg", "monster-head.png", "vendor/pdf.min.js", "vendor/pdf.worker.min.js"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
