@@ -20,12 +20,6 @@ function toast(t) { const el = $("#toast"); el.textContent = t; el.hidden = fals
 function buzz(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} }
 
 const STATUS = { aktiv: "I gang", pause: "Pause", plan: "Planlagt", faerdig: "Færdig" };
-const STATUS_HINT = {
-  aktiv: "– du strikker på det nu. Det står øverst på forsiden og tæller med under \"Projekter i gang\".",
-  pause: "– lagt til side for en stund. Tidtagningen er stoppet. Tryk + ved Pind, så er det i gang igen.",
-  plan: "– et projekt du vil strikke senere. Gem opskrift og garn nu, og start når du er klar.",
-  faerdig: "– færdigt! Slutdatoen er sat, og projektet tæller med i statistik og mærker."
-};
 const WEIGHTS = ["Lace", "Fingering", "Sport", "DK", "Worsted / Aran", "Bulky", "Super bulky"];
 const NEEDLE_TYPES = ["Rundpind", "Strømpepinde", "Lige pinde", "Udskiftelig spids", "Hæklenål"];
 const INK = [{ c: "#f5d020", n: "Gul" }, { c: "#f08bb8", n: "Pink" }, { c: "#7fd18b", n: "Grøn" }];
@@ -165,14 +159,13 @@ function mainPlus(p) {
   incC(m);
   let lap = null;
   p.counters.slice(1).forEach(c => { if (c.follow && incC(c) === "lap") lap = c; });
-  let msg = null;
-  if (p.status === "plan" || p.status === "pause") { p.status = "aktiv"; p.started = p.started || today(); msg = "Projektet er sat til I gang igen"; }
+  if (p.status === "plan" || p.status === "pause") { p.status = "aktiv"; p.started = p.started || today(); }
   const pm = typeof planStep === "function" ? planStep(p, 1) : null;
   logRows(1);
   save("projects", p);
   if (pm) { buzz(pm.buzz); toast(pm.msg); }
   else if (lap) { buzz([40, 60, 40]); toast(`${lap.name} færdig – starter forfra`); }
-  else { buzz(15); if (msg) toast(msg); }
+  else buzz(15);
 }
 function mainMinus(p) {
   const m = p.counters[0];
@@ -189,7 +182,7 @@ function blankProject(name) {
   return {
     id: uid(), name, status: "aktiv", created: Date.now(), started: today(), finished: "", photo: null, patternId: null,
     needles: "", notes: "", yarns: [], timeMs: 0, timerStart: null,
-    counters: [newCounter("Pind"), newCounter("Mønstergentagelse", { follow: true, every: 8 }), newCounter("Masker")]
+    counters: [newCounter("Pind"), newCounter("Masker")]
   };
 }
 async function migrateOld() {
@@ -201,11 +194,7 @@ async function migrateOld() {
       for (const o of old.projects) {
         const p = blankProject(o.name || "Mit strikketøj");
         const rows = o.rows || 0, L = Math.max(1, o.rep | 0 || 8);
-        p.counters[0].value = rows;
-        p.counters[1].every = L;
-        p.counters[1].value = rows === 0 ? 0 : ((rows - 1) % L) + 1;
-        p.counters[1].laps = Math.floor(rows / L);
-        p.counters[2].value = o.stitches || 0;
+        p.counters = [newCounter("Pind", { value: rows }), newCounter("Masker", { value: o.stitches || 0 })];
         p.notes = o.notes || "";
         S.projects.push(p); await save("projects", p);
       }
@@ -250,13 +239,11 @@ document.addEventListener("click", e => {
 });
 
 /* ================= PROJEKTER ================= */
-let projFilter = "alle";
 function viewProjects(v) {
   setTitle("Strikkemonster");
   const order = { aktiv: 0, pause: 1, plan: 2, faerdig: 3 };
-  const list = S.projects
+  const list = [...S.projects]
     .sort((a, b) => order[a.status] - order[b.status] || (b.updated || b.created) - (a.updated || a.created));
-  const chip = (k, t) => `<button class="chip${projFilter === k ? " on" : ""}" data-act="pfilter" data-k="${k}">${t}</button>`;
   v.innerHTML = `
     ${S.projects.length ? `<div class="hello"><img src="monster.jpg" alt=""><div><b>Hej! Monster har strikketøjet klar</b><span>${S.projects.filter(p => p.status === "aktiv").length} projekt${S.projects.filter(p => p.status === "aktiv").length === 1 ? "" : "er"} i gang</span></div></div>` : ""}
     <div class="sec-title"><h2>Mine projekter</h2><button class="chip on" data-act="newProject">+ Nyt</button></div>
@@ -269,7 +256,6 @@ function viewProjects(v) {
       </a>`).join("")}</div>`
       : `<div class="card empty-state"><img class="monster" src="monster.jpg" alt="Monster med strikketøj i munden"><b>${S.projects.length ? "Ingen projekter her" : "Monster er klar til første projekt"}</b><span>Opret et projekt for at tælle pinde, gemme opskriften og holde styr på garnet.</span><button class="btn go" data-act="newProject">+ Nyt projekt</button></div>`}`;
 }
-ACT.pfilter = a => { projFilter = a.dataset.k; render(); };
 ACT.newProject = () => {
   sheet(`<h3>Nyt projekt</h3>
     <label class="f">Navn<input type="text" id="np-name" data-autofocus placeholder="F.eks. Sweater til Ida"></label>
@@ -383,12 +369,32 @@ ACT.cMenu = a => counterSheet(P(), +a.dataset.i);
 function counterSheet(p, i) {
   const isNew = i === null, c = isNew ? newCounter("") : p.counters[i], main = i === 0;
   sheet(`<h3>${isNew ? "Ny tæller" : esc(c.name)}</h3>
+    ${isNew ? `<div class="chips wrap" id="cs-tpl">
+      <button class="chip" data-tpl="rep">Mønstergentagelse</button>
+      <button class="chip" data-tpl="st">Masker</button>
+      <button class="chip" data-tpl="dec">Indtagninger</button>
+      <button class="chip" data-tpl="inc">Udtagninger</button>
+      <button class="chip on" data-tpl="own">Egen tæller</button></div>
+      <div class="small muted" id="cs-tplhelp">Giv tælleren et navn og vælg, hvordan den skal tælle.</div>` : ""}
     <label class="f">Navn<input type="text" id="cs-name" value="${esc(c.name)}" placeholder="F.eks. Udtagninger"></label>
     ${main ? "" : `<label class="check"><input type="checkbox" id="cs-follow"${c.follow ? " checked" : ""}> Tæl op sammen med Pind</label>`}
     <label class="f">Start forfra efter (antal) – tom = tæl frit<input type="number" id="cs-every" min="0" max="500" inputmode="numeric" value="${c.every || ""}" placeholder="F.eks. 8"></label>
     <div class="grid2"><button class="btn" data-close>Annuller</button><button class="btn go" id="cs-ok">Gem</button></div>
     ${isNew ? "" : `<div class="grid2"><button class="btn" id="cs-reset">Nulstil</button>${main ? "<span></span>" : `<button class="btn" id="cs-del">Slet tæller</button>`}</div>`}`,
     (el, close) => {
+      const TPL = {
+        rep: { name: "Mønstergentagelse", follow: true, every: 8, help: "Følger Pind og starter forfra efter det antal pinde, mønsteret er langt. Ret tallet, så det passer til din opskrift." },
+        st: { name: "Masker", follow: false, every: 0, help: "Til at tælle masker undervejs på en pind." },
+        dec: { name: "Indtagninger", follow: false, every: 0, help: "Tæl hvor mange gange du har taget ind." },
+        inc: { name: "Udtagninger", follow: false, every: 0, help: "Tæl hvor mange gange du har taget ud." },
+        own: { name: "", follow: false, every: 0, help: "Giv tælleren et navn og vælg, hvordan den skal tælle." }
+      };
+      $$("#cs-tpl [data-tpl]", el).forEach(b => b.onclick = () => {
+        const t = TPL[b.dataset.tpl];
+        $$("#cs-tpl .chip", el).forEach(x => x.classList.toggle("on", x === b));
+        $("#cs-name", el).value = t.name; $("#cs-follow", el).checked = t.follow; $("#cs-every", el).value = t.every || "";
+        $("#cs-tplhelp", el).textContent = t.help;
+      });
       $("#cs-ok", el).onclick = () => {
         c.name = $("#cs-name", el).value.trim() || (main ? "Pind" : "Tæller");
         if (!main) c.follow = $("#cs-follow", el).checked;
@@ -407,9 +413,6 @@ ACT.pStatus = a => {
   const p = P(); p.status = a.dataset.k;
   if (p.status === "aktiv" && !p.started) p.started = today();
   if (p.status === "faerdig") { if (!p.finished) p.finished = today(); stopTimer(p); toast("Tillykke – projektet er færdigt!"); buzz([30, 50, 30, 50, 60]); }
-  else if (p.status === "pause") { stopTimer(p); toast("Sat på pause"); }
-  else if (p.status === "plan") { stopTimer(p); toast("Flyttet til Planlagt"); }
-  else toast("I gang");
   touch(p); rerenderKeepScroll();
 };
 function stopTimer(p) { if (p.timerStart) { p.timeMs += Date.now() - p.timerStart; p.timerStart = null; } }
@@ -474,7 +477,7 @@ function viewPatterns(v) {
     ${list.length ? `<div class="patgrid">${list.map(p => `
       <a class="pat" href="#/moenster/${p.id}">
         <div class="th">${p.thumb ? `<img data-blob="${p.thumb}" alt="">` : ICON.doc}</div>
-        <div class="tx"><b>${esc(p.name)}</b><span class="small muted">${p.type === "pdf" ? "PDF" : "Billeder"} · ${p.pageCount || p.pages?.length || 1} sider</span></div>
+        <div class="tx"><b>${esc(p.name)}</b><span class="small muted">${p.type === "pdf" ? "PDF" : "Billeder"} · ${(n => n + (n === 1 ? " side" : " sider"))(p.pageCount || p.pages?.length || 1)}</span></div>
       </a>`).join("")}</div>`
       : `<div class="card empty-state">${ICON.doc}<b>Ingen opskrifter endnu</b><span>Upload en PDF eller tag billeder af en opskrift. Så kan du streje med tusch og bruge en markør, mens du strikker.</span><button class="btn go" data-act="patUp">Upload opskrift</button></div>`}`;
 }
@@ -675,7 +678,15 @@ function setupInk(p) {
   const pt = e => { const r = c.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; };
   const eraseAt = q => {
     const arr = V.pat.marks[p.i] || [], before = arr.length;
-    V.pat.marks[p.i] = arr.filter(s => !s.pts.some(([x, y]) => Math.hypot(x - q[0], (y - q[1]) / p.ar) < 0.03));
+    // afstand fra fingeren til stregen (ikke kun dens punkter), målt i sidebredder
+    const segDist = (ax, ay, bx, by) => {
+      ay *= p.ar; by *= p.ar; const qx = q[0], qy = q[1] * p.ar, dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+      const t = L ? Math.max(0, Math.min(1, ((qx - ax) * dx + (qy - ay) * dy) / L)) : 0;
+      return Math.hypot(qx - (ax + t * dx), qy - (ay + t * dy));
+    };
+    const hit = s => s.pts.length === 1 ? segDist(s.pts[0][0], s.pts[0][1], s.pts[0][0], s.pts[0][1]) < 0.03
+      : s.pts.some((pt, k) => k > 0 && segDist(s.pts[k - 1][0], s.pts[k - 1][1], pt[0], pt[1]) < 0.03);
+    V.pat.marks[p.i] = arr.filter(s => !hit(s));
     if (V.pat.marks[p.i].length !== before) drawInk(p);
   };
   c.addEventListener("pointerdown", e => {
@@ -733,7 +744,7 @@ function renderVBottom() {
     b.innerHTML = `<div class="lbl"><span>Knyt opskriften til et projekt for at tælle pinde her</span></div><button class="btn" id="v-link">Vælg projekt</button>`;
     $("#v-link", b).onclick = () => {
       if (!S.projects.length) { toast("Opret et projekt først"); return; }
-      sheet(`<h3>Vælg projekt</h3><div class="list">${S.projects.map(x => `<button class="item" data-pj="${x.id}"><div class="sw">${x.photo ? `<img data-blob="${x.photo}" alt="">` : ICON.yarn}</div><div class="tx"><b>${esc(x.name)}</b><span>${STATUS[x.status]}</span></div></button>`).join("")}</div><button class="btn" data-close>Luk</button>`,
+      sheet(`<h3>Vælg projekt</h3><div class="list">${S.projects.map(x => `<button class="item" data-pj="${x.id}"><div class="sw">${x.photo ? `<img data-blob="${x.photo}" alt="">` : ICON.yarn}</div><div class="tx"><b>${esc(x.name)}</b><span>Pind ${x.counters[0].value}</span></div></button>`).join("")}</div><button class="btn" data-close>Luk</button>`,
         (el, close) => { hydrateImages(el); $$("[data-pj]", el).forEach(btn => btn.onclick = () => { const pj = S.projects.find(x => x.id === btn.dataset.pj); pj.patternId = V.pat.id; touch(pj); V.proj = pj; close(); renderVBottom(); }); });
     };
     return;
@@ -1046,6 +1057,15 @@ document.addEventListener("click", () => { if (!lock) keepAwake(); }, { once: tr
     if (meta) S.meta = { rowsByDay: {}, ...meta };
     await migrateOld();
     S.projects.forEach(p => { p.yarns = p.yarns || []; p.counters = p.counters?.length ? p.counters : [newCounter("Pind")]; });
+    if (!S.meta.noDefaultRep) {
+      S.meta.noDefaultRep = true;
+      for (const p of S.projects) {
+        const n = p.counters.length;
+        p.counters = p.counters.filter((c, i) => !(i > 0 && c.name === "Mønstergentagelse" && c.follow && c.every === 8));
+        if (p.counters.length !== n) await save("projects", p);
+      }
+      await saveMeta();
+    }
   } catch (e) {
     console.error(e);
     $("#view").innerHTML = `<div class="card empty-state"><b>Appen kunne ikke åbne sin database</b><span>Prøv at åbne den i Chrome eller Safari – ikke i privat tilstand.</span></div>`;

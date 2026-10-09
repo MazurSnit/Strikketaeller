@@ -151,7 +151,6 @@ function planNow(p) {
       out.big = sh ? `${verb} ${s.per} m på denne ${w.one}${s.text ? " – " + s.text : ""}` : `Strik uden at tage ${s.dir}`;
       let nxt = 0; for (let r = row + 1; r < len; r++) { nxt++; if (isShape(s, r)) break; }
       out.sub = `${w.Cap} ${row + 1} af ${len} · ${s.dir === "ind" ? "indtagning" : "udtagning"} ${sh ? k + 1 : k} af ${s.times}` + (!sh && k < s.times ? ` · næste om ${nxt} ${nxt === 1 ? w.one : w.many}` : "");
-      if (!sh && s.text) out.note = s.text;
       break;
     }
   }
