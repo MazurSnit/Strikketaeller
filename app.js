@@ -255,18 +255,16 @@ function viewProjects(v) {
   setTitle("Strikkemonster");
   const order = { aktiv: 0, pause: 1, plan: 2, faerdig: 3 };
   const list = S.projects
-    .filter(p => projFilter === "alle" || p.status === projFilter)
     .sort((a, b) => order[a.status] - order[b.status] || (b.updated || b.created) - (a.updated || a.created));
   const chip = (k, t) => `<button class="chip${projFilter === k ? " on" : ""}" data-act="pfilter" data-k="${k}">${t}</button>`;
   v.innerHTML = `
     ${S.projects.length ? `<div class="hello"><img src="monster.jpg" alt=""><div><b>Hej! Monster har strikketøjet klar</b><span>${S.projects.filter(p => p.status === "aktiv").length} projekt${S.projects.filter(p => p.status === "aktiv").length === 1 ? "" : "er"} i gang</span></div></div>` : ""}
     <div class="sec-title"><h2>Mine projekter</h2><button class="chip on" data-act="newProject">+ Nyt</button></div>
-    <div class="chips">${chip("alle", "Alle")}${chip("aktiv", "I gang")}${chip("pause", "Pause")}${chip("plan", "Planlagt")}${chip("faerdig", "Færdige")}</div>
     ${list.length ? `<div class="plist">${list.map(p => `
       <a class="pcard" href="#/projekt/${p.id}">
         <div class="ph">${p.photo ? `<img data-blob="${p.photo}" alt="">` : ICON.yarn}</div>
         <div class="tx"><b>${esc(p.name)}</b>
-          <span class="st ${p.status}">${STATUS[p.status]}${p.status !== "plan" ? ` · pind ${p.counters[0].value}` : ""}</span>
+          <span class="st ${p.status}">${p.status === "faerdig" ? "Færdig" : `Pind ${p.counters[0].value}`}</span>
         </div>
       </a>`).join("")}</div>`
       : `<div class="card empty-state"><img class="monster" src="monster.jpg" alt="Monster med strikketøj i munden"><b>${S.projects.length ? "Ingen projekter her" : "Monster er klar til første projekt"}</b><span>Opret et projekt for at tælle pinde, gemme opskriften og holde styr på garnet.</span><button class="btn go" data-act="newProject">+ Nyt projekt</button></div>`}`;
@@ -275,13 +273,10 @@ ACT.pfilter = a => { projFilter = a.dataset.k; render(); };
 ACT.newProject = () => {
   sheet(`<h3>Nyt projekt</h3>
     <label class="f">Navn<input type="text" id="np-name" data-autofocus placeholder="F.eks. Sweater til Ida"></label>
-    <label class="f">Status<select id="np-status"><option value="aktiv">I gang</option><option value="plan">Planlagt</option></select></label>
     <div class="grid2"><button class="btn" data-close>Annuller</button><button class="btn go" id="np-ok">Opret</button></div>`,
     (el, close) => {
       const ok = async () => {
         const p = blankProject($("#np-name", el).value.trim() || "Nyt projekt");
-        p.status = $("#np-status", el).value;
-        if (p.status === "plan") p.started = "";
         S.projects.push(p); await save("projects", p); close(); go("#/projekt/" + p.id);
       };
       $("#np-ok", el).onclick = ok;
@@ -338,19 +333,16 @@ function viewProject(v) {
     <div class="hero">${p.photo ? `<img data-blob="${p.photo}" alt="">` : `<div class="empty">${ICON.yarn}</div>`}
       <button class="round photo" data-act="pPhoto" aria-label="Skift billede">${ICON.camera}</button></div>
     <div class="namebox"><h2>${esc(p.name)}</h2><button class="iconbtn" data-act="pRename" aria-label="Omdøb">${ICON.pen}</button></div>
-    <div class="chips">${Object.entries(STATUS).map(([k, t]) => `<button class="chip${p.status === k ? " on" : ""}" data-act="pStatus" data-k="${k}">${t}</button>`).join("")}</div>
-    <div class="sthint"><span class="st ${p.status}">${STATUS[p.status]}</span> ${STATUS_HINT[p.status]}</div>
 
     <div class="timer${running ? " run" : ""}">
       <div><div class="small muted">Strikketid</div><div class="t" id="ptime">${fmtTime(elapsed(), true)}</div></div>
       <button class="btn${running ? "" : " go"}" data-act="pTimer">${running ? "Stop" : "Start"}</button>
     </div>
 
-    ${p.plan && p.plan.steps.length ? planCardHTML(p) : ""}
+    ${planCardHTML(p)}
     ${p.counters.map(counterHTML).join("")}
     <button class="btn wide" data-act="cAdd">+ Tilføj tæller</button>
 
-    ${p.plan && p.plan.steps.length ? "" : planCardHTML(p)}
     <section class="card" style="--accent:var(--primary)">
       <div class="head"><h2>Opskrift</h2>${pat ? `<button class="chip ghost" data-act="pPattern">Skift</button>` : ""}</div>
       ${pat ? `<a class="item" href="#/moenster/${pat.id}?p=${p.id}"><div class="sw">${pat.thumb ? `<img data-blob="${pat.thumb}" alt="">` : ICON.doc}</div>

@@ -271,3 +271,6 @@ input[type=range]{width:100%;accent-color:var(--primary)}
 .line.on{background:var(--honey-soft);border-color:var(--amber);font-weight:700}
 .vstep{color:var(--fg)!important;font-weight:700}
 .vstep.shaping{color:var(--amber)!important}
+
+a.btn,a.chip{text-decoration:none;display:inline-block}
+a.btn.wide{display:block}
